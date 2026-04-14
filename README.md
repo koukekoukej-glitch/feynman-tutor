@@ -260,8 +260,6 @@ feynman-tutor/
 ├── scripts/
 │   ├── run.py                    # 环境启动器（自动创建 venv + 安装依赖）
 │   └── extract_content.py        # 多源内容提取引擎（~1500 行）
-├── evals/
-│   └── evals.json                # 评测用例（6 个核心场景）
 ├── notes/                        # 学习笔记（使用时自动生成，已 gitignore）
 └── materials/                    # 材料缓存（使用时自动生成，已 gitignore）
 ```

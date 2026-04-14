@@ -261,8 +261,6 @@ feynman-tutor/
 ├── scripts/
 │   ├── run.py                    # Environment bootstrapper (auto venv + dependency install)
 │   └── extract_content.py        # Multi-source content extraction engine (~1500 lines)
-├── evals/
-│   └── evals.json                # Evaluation cases (6 core scenarios)
 ├── notes/                        # Learning notes (auto-generated during use, gitignored)
 └── materials/                    # Material cache (auto-generated during use, gitignored)
 ```
