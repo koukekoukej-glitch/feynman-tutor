@@ -1,6 +1,8 @@
 # Feynman Tutor
 
-**A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill based on the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing the exact gaps in your understanding.**
+**An AI teaching Skill based on the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing the exact gaps in your understanding.**
+
+Works with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and any LLM agent framework that supports custom System Prompts + file I/O + shell execution.
 
 [中文版 README](README.md)
 
@@ -118,16 +120,28 @@ Continuously reads your signals throughout the session and adjusts pace in real-
 
 ### Prerequisites
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and working
+- An LLM agent that supports custom System Prompts, file I/O, and shell execution (e.g., [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, Windsurf, etc.)
 - Python 3.10+ (needed for the material extraction pipeline; pure concept learning doesn't require it)
 
-### One-Step Install
+### Claude Code (Recommended, works out of the box)
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/feynman-tutor.git ~/.claude/skills/feynman-tutor
 ```
 
-Done. No additional configuration needed.
+Done. Claude Code automatically detects the trigger conditions in SKILL.md — no extra configuration needed.
+
+### Other Agent Frameworks
+
+The core teaching logic is entirely in Markdown files, with no dependency on any platform-specific API:
+
+1. Clone the repo to a path your agent can access
+2. Load the content of `SKILL.md` as a System Prompt or Rules
+3. Ensure the agent can read/write the `notes/` and `materials/` directories and execute `python3 scripts/run.py`
+
+As long as these three requirements are met, the full teaching flow will work.
+
+### Material Extraction Environment
 
 The first time you use the material extraction feature, the script automatically creates an isolated Python virtual environment and installs all dependencies (~2 minutes).
 
@@ -147,7 +161,7 @@ Some platforms require authentication in certain network environments:
 
 ## Usage
 
-After installation, just speak naturally in Claude Code — the skill triggers automatically, no prefix commands needed.
+After installation, just speak naturally — the skill triggers automatically, no prefix commands needed.
 
 ### Concept Learning
 
@@ -307,7 +321,11 @@ The script outputs detailed error messages with solutions. The most common case 
 
 The teaching methodology is language-agnostic — the tutor matches your conversation language. However, the Skill definition files themselves are written in Chinese. Community translations are welcome.
 
-**Q: Can it coexist with other Claude Code Skills?**
+**Q: Does it only work with Claude Code?**
+
+No. The core teaching logic is pure Markdown instructions. Any agent framework that can read/write files, execute shell commands, and load custom System Prompts can be adapted. Claude Code offers the best out-of-the-box experience, but Cursor Rules, Windsurf, and others work too.
+
+**Q: Can it coexist with other Skills?**
 
 Yes. Feynman Tutor only triggers when it detects learning intent and won't interfere with other Skills.
 

@@ -1,10 +1,12 @@
 # 费曼导师 (Feynman Tutor)
 
-**一个基于费曼学习法的 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill —— 不是帮你总结知识的 AI，而是逼你真正学会的 AI。**
+**一个基于费曼学习法的 AI 教学 Skill —— 不是帮你总结知识的 AI，而是逼你真正学会的 AI。**
 
 [English Version](README_EN.md)
 
-> A Claude Code Skill that teaches you through the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing gaps in your understanding.
+> An AI teaching Skill based on the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing gaps in your understanding.
+
+适用于 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 及任何支持自定义 System Prompt + 文件读写 + Shell 执行的 LLM Agent 框架。
 
 ---
 
@@ -120,16 +122,28 @@ notes/
 
 ### 前提条件
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 已安装并可用
+- 一个支持自定义 System Prompt、文件读写、Shell 执行的 LLM Agent（如 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Cursor、Windsurf 等）
 - Python 3.10+（材料提取管线需要，纯概念学习不需要）
 
-### 一步安装
+### Claude Code（推荐，开箱即用）
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/feynman-tutor.git ~/.claude/skills/feynman-tutor
 ```
 
-完成。无需任何额外配置。
+完成。Claude Code 会自动识别 SKILL.md 中的触发条件，无需额外配置。
+
+### 其他 Agent 框架
+
+核心教学逻辑全部写在 Markdown 文件中，不依赖任何特定平台 API：
+
+1. 将仓库克隆到你的 Agent 可以访问的路径
+2. 将 `SKILL.md` 的内容作为 System Prompt 或 Rules 加载
+3. 确保 Agent 能读写 `notes/` 和 `materials/` 目录、能执行 `python3 scripts/run.py` 命令
+
+只要满足以上三点，教学流程就能正常运转。
+
+### 材料提取环境
 
 首次使用材料提取功能时，脚本会自动创建隔离的 Python 虚拟环境并安装所有依赖（约 2 分钟）。
 
@@ -149,7 +163,7 @@ git clone https://github.com/YOUR_USERNAME/feynman-tutor.git ~/.claude/skills/fe
 
 ## 使用方式
 
-安装后，在 Claude Code 中用自然语言说话即可自动触发，无需任何前缀命令。
+安装后，用自然语言说话即可触发，无需任何前缀命令。
 
 ### 概念学习
 
@@ -306,7 +320,11 @@ feynman-tutor/
 
 可以。Skill 的教学流程是语言无关的，它会自动匹配你的对话语言。但 Skill 本身的定义文件是中文的。
 
-**Q: 可以和其他 Claude Code Skill 一起用吗？**
+**Q: 只能在 Claude Code 里用吗？**
+
+不是。核心教学逻辑是纯 Markdown 指令，任何能读写文件、执行 Shell、加载自定义 System Prompt 的 Agent 框架都可以适配。Claude Code 是开箱即用体验最好的，但 Cursor Rules、Windsurf 等也能用。
+
+**Q: 可以和其他 Skill 一起用吗？**
 
 可以。费曼导师只在检测到学习意图时触发，不会干扰其他 Skill 的正常工作。
 
