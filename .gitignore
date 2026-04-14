@@ -1,0 +1,13 @@
+# Python virtual environment (auto-created on first run)
+scripts/.venv/
+
+# Cookie files (contain personal auth tokens)
+scripts/*_cookies.txt
+
+# Personal learning data (generated during use)
+notes/*.md
+materials/*/
+
+# OS files
+.DS_Store
+Thumbs.db
