@@ -254,8 +254,8 @@ git clone https://github.com/YOUR_USERNAME/feynman-tutor.git ~/.claude/skills/fe
 ```
 feynman-tutor/
 ├── SKILL.md                      # 核心技能定义（触发条件 + 完整教学流程）
-├── material-analysis.md          # 材料学习流程（提取 → 分析 → 讨论）
 ├── references/
+│   ├── material-analysis.md      # 材料学习流程（提取 → 分析 → 讨论）
 │   └── note-management.md        # 笔记管理 + 认知地图更新流程
 ├── scripts/
 │   ├── run.py                    # 环境启动器（自动创建 venv + 安装依赖）

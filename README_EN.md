@@ -255,8 +255,8 @@ User drops a URL
 ```
 feynman-tutor/
 ├── SKILL.md                      # Core skill definition (triggers + full teaching flow)
-├── material-analysis.md          # Material learning flow (extract → analyze → discuss)
 ├── references/
+│   ├── material-analysis.md      # Material learning flow (extract → analyze → discuss)
 │   └── note-management.md        # Note management + cognitive map update flow
 ├── scripts/
 │   ├── run.py                    # Environment bootstrapper (auto venv + dependency install)

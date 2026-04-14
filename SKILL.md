@@ -42,14 +42,14 @@ disable-model-invocation: true
   | .pdf 结尾, arxiv.org/pdf/ | PDF | 材料管线 |
   | 其他网页 URL | 网页 | 材料管线 |
 
-  **材料管线** = 读取 `~/.claude/skills/feynman-tutor/material-analysis.md`，走材料学习流程。
+  **材料管线** = 读取 `~/.claude/skills/feynman-tutor/references/material-analysis.md`，走材料学习流程。
 
   IMPORTANT：对上述所有来源类型，提取脚本 `run.py` 已内置了专属提取器（字幕 API、反检测浏览器、PDF 解析等），能力远超 WebFetch。识别出 URL 类型后，第一个动作是检查缓存 / 运行提取脚本——不要先用 WebFetch 预览内容。
 
   如果用户的消息同时包含 URL 和独立学习主题（如"我刚看了这个视频 [URL]，另外我还想聊聊 X"），先走材料管线处理 URL，完成后再问用户是否要继续聊独立主题。
 
   不要继续读下面的阶段 0-3。
-- **如果用户提到了之前分析过的材料**（如"接着聊上次的视频"、"继续那个播客"等，但没有给 URL）→ 读取 `~/.claude/skills/feynman-tutor/materials/INDEX.md` 查找匹配的材料，然后读取 `~/.claude/skills/feynman-tutor/material-analysis.md`，从**阶段 C-续读**开始。不要继续读下面的阶段 0-3。
+- **如果用户提到了之前分析过的材料**（如"接着聊上次的视频"、"继续那个播客"等，但没有给 URL）→ 读取 `~/.claude/skills/feynman-tutor/materials/INDEX.md` 查找匹配的材料，然后读取 `~/.claude/skills/feynman-tutor/references/material-analysis.md`，从**阶段 C-续读**开始。不要继续读下面的阶段 0-3。
 - **如果用户没有给 URL，也没有提到已有材料**，只是提了一个想学的主题 → 继续走下面的正常教学流程。
 
 ### 前置步骤 1：加载认知全景
