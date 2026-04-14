@@ -267,20 +267,6 @@ feynman-tutor/
 
 ---
 
-## Evaluation Results
-
-Tested across 6 core scenarios covering concept learning, zero-background users, everyday knowledge, material learning (YouTube/web/Bilibili), and error handling:
-
-| Metric | Result |
-|--------|--------|
-| Pass rate with Skill | **100%** (14/14 checkpoints) |
-| Pass rate without Skill | 19.4% (3/14 checkpoints) |
-| **Skill improvement** | **+80.6 percentage points** |
-
-**Without this Skill**, Claude defaults to directly explaining concepts (passive learning). **With the Skill**, Claude executes the full cognitive probing → role reversal → diagnosis → reinforcement pipeline (active learning).
-
----
-
 ## Design Philosophy
 
 This Skill is not a "prompt template" — it's a complete **cognitive engineering system**:
