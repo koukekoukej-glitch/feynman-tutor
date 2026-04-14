@@ -1,343 +1,344 @@
-# 费曼导师 (Feynman Tutor)
+# Feynman Tutor
 
-**一个基于费曼学习法的 AI 教学 Skill —— 不是帮你总结知识的 AI，而是逼你真正学会的 AI。**
+**An AI teaching Skill based on the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing the exact gaps in your understanding.**
 
-[English Version](README_EN.md)
+Works with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and any LLM agent framework that supports custom System Prompts + file I/O + shell execution.
 
-> An AI teaching Skill based on the Feynman Technique — instead of explaining concepts to you, it makes YOU explain them, exposing gaps in your understanding.
-
-适用于 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 及任何支持自定义 System Prompt + 文件读写 + Shell 执行的 LLM Agent 框架。
+[中文版 README](README_ZH.md)
 
 ---
 
-## 它解决什么问题？
+## The Problem It Solves
 
-你有没有这种体验：
+You've probably experienced this:
 
-- 看了一篇深度文章，觉得"我懂了"，但别人一问你就讲不清楚
-- 让 AI "教你" 某个概念，它给了一大段完美的解释，你点头说"明白了"——但其实什么都没留下
-- 学了很多碎片知识，但它们之间没有连接，用不起来
+- You read a deep article and thought "I get it" — but when someone asks you to explain, you can't
+- You asked AI to "teach you" something, it gave a perfect explanation, you nodded along — but nothing actually stuck
+- You've learned lots of fragments, but they don't connect into anything usable
 
-问题不在于 AI 讲得不好，而在于：**被动听讲 ≠ 学会。**
+The problem isn't that AI explains poorly. The problem is: **passively listening ≠ learning.**
 
-费曼导师的核心设计：**不给你答案，而是让你自己把答案讲出来。** 讲不出来的地方，就是你没懂的地方。
+Feynman Tutor's core design: **it doesn't give you answers — it makes you articulate them yourself.** Where you can't articulate, that's where you don't understand.
 
 ---
 
-## 和"让 AI 解释"有什么不同？
+## How Is This Different From "Ask AI to Explain"?
 
-|  | 普通 AI 对话 | 费曼导师 |
+|  | Typical AI Chat | Feynman Tutor |
 |---|---|---|
-| **谁在讲？** | AI 给你讲解 | **你给 AI 讲解** |
-| **发现盲点** | 你不知道自己不知道什么 | AI 通过追问暴露你的理解裂缝 |
-| **难度适配** | 要么太简单要么太难 | 始终在你的认知边界外一步（ZPD） |
-| **跨会话记忆** | 每次从零开始 | 记住你学过什么、哪里卡过、什么类比对你有效 |
-| **外部材料** | "帮我总结这个视频" | 把视频变成教学素材，用费曼法帮你内化 |
-| **跨主题连接** | 每个主题是孤岛 | 自动发现不同主题间的结构类比和共同模式 |
+| **Who's talking?** | AI explains to you | **You explain to AI** |
+| **Finding blind spots** | You don't know what you don't know | AI probes with follow-up questions to expose cracks |
+| **Difficulty** | Either too easy or too hard | Always one step beyond your knowledge boundary (ZPD) |
+| **Cross-session memory** | Starts from zero every time | Remembers what you've learned, where you got stuck, which analogies worked |
+| **External materials** | "Summarize this video for me" | Turns the video into teaching material, uses Feynman method to help you internalize |
+| **Cross-topic connections** | Each topic is an island | Automatically discovers structural analogies and shared patterns across topics |
 
 ---
 
-## 核心特性
+## Core Features
 
-### 1. 角色反转教学
+### 1. Role-Reversal Teaching
 
-你不是学生，你是"老师"。费曼导师会装作什么都不懂的朋友，让你来解释概念。当你讲到犹豫、模糊、绕圈的地方——那就是你的知识边界。
+You're not the student — you're the "teacher." Feynman Tutor plays a curious friend who knows nothing, and asks you to explain concepts. When you hesitate, go in circles, or get vague — that's your knowledge boundary.
 
-> "等一下，你说 A 会导致 B，但如果情况是 C 呢？"
+> "Wait, you said A leads to B, but what if the situation is C?"
 
-不是故意刁难，而是帮你看到自己看不到的盲点。即使你卡住说"我不知道"，导师也不会直接给答案——而是换个角度追问，让你自己想通。
+Not trying to trip you up — helping you see what you can't see yourself. Even if you're stuck and say "I don't know," the tutor won't just give you the answer — it'll probe from a different angle until you figure it out yourself.
 
-### 2. 认知边界精准定位（ZPD）
+### 2. Precise Knowledge Boundary Detection (ZPD)
 
-基于维果茨基的**最近发展区**理论：学习只发生在"已知"和"未知"的边界上。导师会先用 2-3 个递进问题探测你的知识边界，然后始终在边界外一步的位置工作——不会让你无聊，也不会让你挫败。
+Based on Vygotsky's **Zone of Proximal Development**: learning only happens at the boundary between "known" and "unknown." The tutor uses 2-3 progressive questions to locate your knowledge boundary, then works exactly one step beyond it — never boring, never overwhelming.
 
 ```
-概念层 → "你对 X 了解多少？"
-机制层 → "你觉得背后的原理是什么？"
-应用层 → "遇到 Y 情境你会怎么用？"
+Concept level → "What do you know about X?"
+Mechanism level → "What do you think the underlying principle is?"
+Application level → "How would you apply this in situation Y?"
 
-观察"流畅度断崖"出现在哪里 → 那就是你的认知边界
+Observe where the "fluency cliff" appears → that's the knowledge boundary
 ```
 
-### 3. 多源材料学习管线
+### 3. Multi-Source Material Extraction Pipeline
 
-丢给它一个链接，它不是帮你"总结"——而是把材料变成个性化的教学素材。内置生产级提取管线，覆盖主流内容平台：
+Drop a link, and it doesn't "summarize" — it turns the material into personalized teaching content. Built-in production-grade extraction pipeline covering major content platforms:
 
-| 来源 | 提取方式 |
-|------|---------|
-| **YouTube** | 字幕 API + yt-dlp（支持 Cookie 绕过 IP 封锁） |
-| **B站** | bilibili-api AI 字幕 + yt-dlp CC 字幕 |
-| **微信公众号** | Camoufox 反检测浏览器 + DOM 结构化提取 |
-| **PDF / arXiv** | pymupdf4llm 结构化 Markdown 提取 |
-| **网页** | trafilatura + Playwright JS 渲染回退 |
-| **X/Twitter** | GraphQL API（需额外配置） |
+| Source | Extraction Method |
+|--------|------------------|
+| **YouTube** | Transcript API + yt-dlp (with Cookie auth for IP blocks) |
+| **Bilibili** | bilibili-api AI subtitles + yt-dlp CC subtitles |
+| **WeChat Articles** | Camoufox anti-detection browser + DOM extraction |
+| **PDF / arXiv** | pymupdf4llm structured Markdown extraction |
+| **Web pages** | trafilatura + Playwright JS rendering fallback |
+| **X/Twitter** | GraphQL API (requires additional setup) |
 
-材料提取后自动缓存，跨会话不需要重复提取。超长材料按话题地图按需加载——20 万字的 PDF 也不会撑爆上下文。
+Extracted materials are cached automatically — no re-extraction needed across sessions. Long materials are loaded on-demand via topic maps — even a 200K-word PDF won't blow up the context.
 
-### 4. 持久化认知系统
+### 4. Persistent Cognitive System
 
-这不是一个无状态的聊天机器人。它维护三层持久化记忆：
+This is not a stateless chatbot. It maintains three layers of persistent memory:
 
 ```
 notes/
-├── INDEX.md          # 所有学过的主题索引
-├── LEARNER.md        # 学习者模型（跨主题认知风格、盲区、有效策略）
-├── GRAPH.md          # 认知地图（跨主题连接、结构类比、领域框架）
-├── attention.md      # 主题笔记：已掌握 / 误区 / 边界 / 有效类比
+├── INDEX.md          # Index of all studied topics
+├── LEARNER.md        # Learner model (cross-topic cognitive style, blind spots, effective strategies)
+├── GRAPH.md          # Cognitive map (cross-topic connections, structural analogies, domain frameworks)
+├── attention.md      # Topic notes: mastered / misconceptions / boundary / effective analogies
 ├── tcp-protocol.md
 └── ...
 ```
 
-- **主题笔记**：用你自己的语言记录（不是教科书定义），含已掌握、已纠正的误区、当前认知边界、待加强、有效类比
-- **学习者模型** (`LEARNER.md`)：跨主题的元认知分析——你的认知风格、习惯性盲区、对你有效的教学策略
-- **认知地图** (`GRAPH.md`)：不同主题之间的结构类比、共同模式、认知迁移路径
+- **Topic Notes**: Recorded in your own words (not textbook definitions) — what you've mastered, corrected misconceptions, current knowledge boundary, areas to strengthen, effective analogies
+- **Learner Model** (`LEARNER.md`): Cross-topic metacognitive analysis — your cognitive style, habitual blind spots, teaching strategies that work for you
+- **Cognitive Map** (`GRAPH.md`): Structural analogies between different topics, shared patterns, cognitive transfer paths
 
-下次学新东西时，导师会自动加载你的认知全景，从你上次停下的地方继续，并主动桥接已有知识："你还记得在 [旧主题] 中的 [概念] 吗？今天这个其实是同一个模式。"
+Next time you learn something new, the tutor automatically loads your full cognitive landscape, picks up where you left off, and proactively bridges existing knowledge: "Remember the concept of [X] from [old topic]? This is actually the same pattern in a different domain."
 
-### 5. 分级诊断反馈
+### 5. Tiered Diagnostic Feedback
 
-不只是"对/错"：
+Not just "right/wrong":
 
-- 🔴 **关键误解**——方向性错误，用触发"啊哈时刻"的类比或反例纠正
-- 🟡 **理解不完整**——方向对但有缺口，引导你自己补上
-- 🟢 **表述可优化**——理解正确，给更精准的表述
+- 🔴 **Critical misconception** — directional error, corrected with an analogy or counterexample that triggers an "aha moment"
+- 🟡 **Incomplete understanding** — right direction but gaps, guided to fill them yourself
+- 🟢 **Could be phrased better** — understanding is correct, given a more precise formulation
 
-同时强化你讲对的部分——正向反馈同样重要。
+Also reinforces what you got right — positive feedback matters equally.
 
-### 6. 动态校准
+### 6. Dynamic Calibration
 
-整个学习过程持续读取你的信号并实时调整节奏：
+Continuously reads your signals throughout the session and adjusts pace in real-time:
 
-| 你的表现 | 导师的响应 |
-|---------|-----------|
-| 回答越来越快、越来越自信 | 加大步幅，引入更深层概念 |
-| 反复卡在同一个点 | 换完全不同的类比或角度 |
-| 回答简短、敷衍 | 后退一步巩固，避免挫败 |
-| 主动问出超前问题 | 直接跳到更深层级 |
-| "我好像懂了" | 抛变式场景验证——能迁移才是真懂 |
+| Your Signal | Tutor's Response |
+|-------------|-----------------|
+| Answers getting faster and more confident | Increase stride, introduce deeper concepts |
+| Stuck on the same point repeatedly | Switch to a completely different analogy or angle |
+| Short, dismissive answers | Step back to comfort zone, consolidate before pushing |
+| Asking questions ahead of the curriculum | Jump directly to deeper level |
+| "I think I get it" | Throw a variant scenario — transfer ability = true understanding |
 
 ---
 
-## 安装
+## Installation
 
-### 前提条件
+### Prerequisites
 
-- 一个支持自定义 System Prompt、文件读写、Shell 执行的 LLM Agent（如 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、Cursor、Windsurf 等）
-- Python 3.10+（材料提取管线需要，纯概念学习不需要）
+- An LLM agent that supports custom System Prompts, file I/O, and shell execution (e.g., [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Cursor, Windsurf, etc.)
+- Python 3.10+ (needed for the material extraction pipeline; pure concept learning doesn't require it)
 
-### Claude Code（推荐，开箱即用）
+### Claude Code (Recommended, works out of the box)
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/feynman-tutor.git ~/.claude/skills/feynman-tutor
 ```
 
-完成。Claude Code 会自动识别 SKILL.md 中的触发条件，无需额外配置。
+Done. Claude Code automatically detects the trigger conditions in SKILL.md — no extra configuration needed.
 
-### 其他 Agent 框架
+### Other Agent Frameworks
 
-核心教学逻辑全部写在 Markdown 文件中，不依赖任何特定平台 API：
+The core teaching logic is entirely in Markdown files, with no dependency on any platform-specific API:
 
-1. 将仓库克隆到你的 Agent 可以访问的路径
-2. 将 `SKILL.md` 的内容作为 System Prompt 或 Rules 加载
-3. 确保 Agent 能读写 `notes/` 和 `materials/` 目录、能执行 `python3 scripts/run.py` 命令
+1. Clone the repo to a path your agent can access
+2. Load the content of `SKILL.md` as a System Prompt or Rules
+3. Ensure the agent can read/write the `notes/` and `materials/` directories and execute `python3 scripts/run.py`
 
-只要满足以上三点，教学流程就能正常运转。
+As long as these three requirements are met, the full teaching flow will work.
 
-### 材料提取环境
+### Material Extraction Environment
 
-首次使用材料提取功能时，脚本会自动创建隔离的 Python 虚拟环境并安装所有依赖（约 2 分钟）。
+The first time you use the material extraction feature, the script automatically creates an isolated Python virtual environment and installs all dependencies (~2 minutes).
 
-### 可选：Cookie 配置（提升材料提取成功率）
+### Optional: Cookie Setup (Improves Extraction Success Rate)
 
-某些平台在特定网络环境下需要登录态才能提取内容：
+Some platforms require authentication in certain network environments:
 
-**YouTube**（如果遇到 IP 封锁）：
-1. 在 Chrome 中安装 [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) 扩展
-2. 打开 YouTube 并确保已登录
-3. 点击扩展图标 → Export → 保存为 `~/.claude/skills/feynman-tutor/scripts/youtube_cookies.txt`
+**YouTube** (if you hit IP blocks):
+1. Install the [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) Chrome extension
+2. Open YouTube and make sure you're logged in
+3. Click the extension icon → Export → Save as `~/.claude/skills/feynman-tutor/scripts/youtube_cookies.txt`
 
-**B站**（AI 字幕需要登录态）：
-- 同上流程，保存为 `scripts/bilibili_cookies.txt`
-
----
-
-## 使用方式
-
-安装后，用自然语言说话即可触发，无需任何前缀命令。
-
-### 概念学习
-
-```
-> 教我注意力机制
-> 帮我理解 TCP 三次握手的原理
-> 我想搞懂什么是最近发展区
-> 微积分的基本定理到底在说什么？
-```
-
-### 材料学习
-
-```
-> https://www.youtube.com/watch?v=aircAruvnKk 我想学这个视频里的内容
-> 帮我消化一下这篇文章 https://example.com/deep-learning-intro
-> ~/Documents/paper.pdf 帮我学习这篇论文
-```
-
-### 保存学习记录
-
-```
-> 保存笔记
-> 记录一下今天学的
-> 更新学习进度
-```
+**Bilibili** (AI subtitles require login):
+- Same process, save as `scripts/bilibili_cookies.txt`
 
 ---
 
-## 学习流程
+## Usage
 
-### 概念学习流程
+After installation, just speak naturally — the skill triggers automatically, no prefix commands needed.
+
+### Concept Learning
 
 ```
-"教我 X"
+> Teach me about attention mechanisms
+> Help me understand the TCP three-way handshake
+> I want to understand what ZPD means
+> What is the fundamental theorem of calculus really saying?
+```
+
+### Material Learning
+
+```
+> https://www.youtube.com/watch?v=aircAruvnKk I want to learn what this video covers
+> Help me digest this article https://example.com/deep-learning-intro
+> ~/Documents/paper.pdf help me study this paper
+```
+
+### Save Learning Progress
+
+```
+> Save notes
+> Record what I learned today
+> Update my learning progress
+```
+
+---
+
+## Learning Flow
+
+### Concept Learning
+
+```
+"Teach me X"
     │
     ▼
-┌─────────────────┐
-│  加载认知全景     │ ← 笔记 + 学习者模型 + 认知地图
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  认知探测         │ ← 2-3 个递进问题，找到知识边界
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  角色反转         │ ← "你来教我"，用追问暴露盲点
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  诊断反馈         │ ← 🔴🟡🟢 分级标注 + 正向强化
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     还有 🔴 未解决
-│  补强与输出       │ ─────────────────→ 回到「角色反转」
-└────────┬────────┘
-         │ 全部解决
-         ▼
-┌─────────────────┐
-│  保存笔记         │ ← 更新主题笔记 + 认知地图
-└─────────────────┘
+┌──────────────────────┐
+│  Load cognitive       │ ← Notes + learner model + cognitive map
+│  landscape            │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Cognitive probing    │ ← 2-3 progressive questions to find the boundary
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Role reversal        │ ← "You teach me" — probing questions expose gaps
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Diagnostic feedback  │ ← 🔴🟡🟢 tiered assessment + positive reinforcement
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐     🔴 unresolved
+│  Reinforcement &      │ ──────────────────→ Back to "Role Reversal"
+│  output               │
+└──────────┬───────────┘
+           │ All resolved
+           ▼
+┌──────────────────────┐
+│  Save notes           │ ← Update topic notes + cognitive map
+└──────────────────────┘
 ```
 
-### 材料学习流程
+### Material Learning
 
 ```
-用户丢一个 URL
+User drops a URL
     │
     ▼
-┌─────────────────┐
-│  检查缓存         │ ← 提取过的材料直接加载，不重复提取
-└────────┬────────┘
-         │ 缓存未命中
-         ▼
-┌─────────────────┐
-│  提取内容         │ ← 自动识别来源类型，运行对应提取器
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  材料分析报告     │ ← 话题地图 + 知识地图 + 推荐学习路径
-└────────┬────────┘
-         │ 用户选择话题
-         ▼
-┌─────────────────┐
-│  费曼式深入讨论   │ ← 引导 → 角色反转 → 诊断 → 补强
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  更新进度         │ ← 标记已讨论话题，问用户继续还是换话题
-└─────────────────┘
+┌──────────────────────┐
+│  Check cache          │ ← Previously extracted materials loaded directly
+└──────────┬───────────┘
+           │ Cache miss
+           ▼
+┌──────────────────────┐
+│  Extract content      │ ← Auto-detect source type, run corresponding extractor
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Analysis report      │ ← Topic map + knowledge map + recommended learning path
+└──────────┬───────────┘
+           │ User selects a topic
+           ▼
+┌──────────────────────┐
+│  Feynman-style        │ ← Guide → Role reversal → Diagnose → Reinforce
+│  deep discussion      │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Update progress      │ ← Mark discussed topics, ask to continue or switch
+└──────────────────────┘
 ```
 
 ---
 
-## 项目结构
+## Project Structure
 
 ```
 feynman-tutor/
-├── SKILL.md                      # 核心技能定义（触发条件 + 完整教学流程）
+├── SKILL.md                      # Core skill definition (triggers + full teaching flow)
 ├── references/
-│   ├── material-analysis.md      # 材料学习流程（提取 → 分析 → 讨论）
-│   └── note-management.md        # 笔记管理 + 认知地图更新流程
+│   ├── material-analysis.md      # Material learning flow (extract → analyze → discuss)
+│   └── note-management.md        # Note management + cognitive map update flow
 ├── scripts/
-│   ├── run.py                    # 环境启动器（自动创建 venv + 安装依赖）
-│   └── extract_content.py        # 多源内容提取引擎（~1500 行）
-├── notes/                        # 学习笔记（使用时自动生成，已 gitignore）
-└── materials/                    # 材料缓存（使用时自动生成，已 gitignore）
+│   ├── run.py                    # Environment bootstrapper (auto venv + dependency install)
+│   └── extract_content.py        # Multi-source content extraction engine (~1500 lines)
+├── notes/                        # Learning notes (auto-generated during use, gitignored)
+└── materials/                    # Material cache (auto-generated during use, gitignored)
 ```
 
 ---
 
-## 设计哲学
+## Design Philosophy
 
-这个 Skill 不是一个"提示词模板"——它是一个完整的**认知工程系统**：
+This Skill is not a "prompt template" — it's a complete **cognitive engineering system**:
 
-1. **教育学驱动**。费曼学习法和 ZPD 不是装饰性的概念引用，而是每个设计决策的判断依据——"这句话应该说什么"的答案，始终回到"这样做是否在用户的认知边界外一步"。
+1. **Pedagogy-driven.** The Feynman Technique and ZPD aren't decorative name-drops — they're the decision criteria behind every design choice. "What should I say next?" always resolves to "Is this one step beyond the user's knowledge boundary?"
 
-2. **状态化而非无状态**。25+ 个主题笔记、学习者模型、认知地图——每次学习都建立在之前的基础上。传统 prompt engineering 在上下文窗口结束时就丢失了所有状态，这个系统不会。
+2. **Stateful, not stateless.** Topic notes, learner models, cognitive maps — every session builds on previous ones. Traditional prompt engineering loses all state when the context window ends. This system doesn't.
 
-3. **材料是素材，不是权威**。导师鼓励批判性思维，如果材料有错也会指出。"作者为什么这么说？有没有其他角度？"
+3. **Materials are input, not authority.** The tutor encourages critical thinking; if the material contains errors, it points them out. "Why does the author say this? Is there another perspective?"
 
-4. **弹性流程，不是刚性管线**。简单确认不需要走四阶段；零基础用户会多停留在探测阶段；用户说"你先讲一下吧"时可以临时切换模式。
+4. **Flexible flow, not rigid pipeline.** A quick confirmation doesn't need the full four stages. A zero-background user gets more time in the probing phase. When you say "just explain it to me first," the tutor can temporarily switch modes.
 
-5. **用你自己的语言**。笔记记录的是你的表述和你验证有效的类比，不是教科书定义。因为下一次读这些笔记的"导师"需要的是你的真实认知状态，不是标准答案。
-
----
-
-## 适用场景
-
-**特别擅长：**
-- 需要深度理解的概念（不是查个定义就够的）
-- 从视频/文章/论文中提炼并内化知识
-- 跨领域学习，需要连接已有知识
-- 长期、系统性地学习一个领域
-
-**不太适合：**
-- 快速查一个事实（直接问 AI 更快）
-- 纯粹需要一个总结（这个 Skill 的目的是让你学会，不是帮你省时间）
+5. **In your own words.** Notes record your phrasing and your validated analogies, not textbook definitions. Because the next "tutor" reading these notes needs your actual cognitive state, not standard answers.
 
 ---
 
-## 常见问题
+## Best Suited For
 
-**Q: 材料提取失败怎么办？**
+**Excels at:**
+- Concepts that require deep understanding (not just looking up a definition)
+- Extracting and internalizing knowledge from videos, articles, and papers
+- Cross-domain learning that needs to connect to existing knowledge
+- Long-term, systematic study of a domain
 
-脚本会输出详细的错误信息和解决方案。最常见的情况是需要配置 Cookie（YouTube IP 封锁、B站 AI 字幕）。你也可以直接把内容粘贴给 Claude，跳过自动提取。
-
-**Q: 我想用英文学习可以吗？**
-
-可以。Skill 的教学流程是语言无关的，它会自动匹配你的对话语言。但 Skill 本身的定义文件是中文的。
-
-**Q: 只能在 Claude Code 里用吗？**
-
-不是。核心教学逻辑是纯 Markdown 指令，任何能读写文件、执行 Shell、加载自定义 System Prompt 的 Agent 框架都可以适配。Claude Code 是开箱即用体验最好的，但 Cursor Rules、Windsurf 等也能用。
-
-**Q: 可以和其他 Skill 一起用吗？**
-
-可以。费曼导师只在检测到学习意图时触发，不会干扰其他 Skill 的正常工作。
+**Not ideal for:**
+- Quick fact lookups (asking AI directly is faster)
+- Just needing a summary (this Skill's goal is to make you *learn*, not save you time)
 
 ---
 
-## 贡献
+## FAQ
 
-欢迎 PR 和 Issue。特别欢迎：
+**Q: What if material extraction fails?**
 
-- 新的内容来源提取器（Podcast、Notion 等）
-- 评测用例补充
-- 其他语言的 Skill 定义翻译
-- Bug 修复和提取管线优化
+The script outputs detailed error messages with solutions. The most common case is needing Cookie configuration (YouTube IP blocks, Bilibili AI subtitles). You can also paste content directly to Claude, skipping automatic extraction.
+
+**Q: Does it work in languages other than Chinese?**
+
+The teaching methodology is language-agnostic — the tutor matches your conversation language. However, the Skill definition files themselves are written in Chinese. Community translations are welcome.
+
+**Q: Does it only work with Claude Code?**
+
+No. The core teaching logic is pure Markdown instructions. Any agent framework that can read/write files, execute shell commands, and load custom System Prompts can be adapted. Claude Code offers the best out-of-the-box experience, but Cursor Rules, Windsurf, and others work too.
+
+**Q: Can it coexist with other Skills?**
+
+Yes. Feynman Tutor only triggers when it detects learning intent and won't interfere with other Skills.
+
+---
+
+## Contributing
+
+PRs and Issues welcome. Especially:
+
+- New content source extractors (Podcasts, Notion, etc.)
+- Additional evaluation cases
+- Skill definition translations to other languages
+- Bug fixes and extraction pipeline improvements
 
 ---
 
