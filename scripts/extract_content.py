@@ -43,6 +43,8 @@ def detect_source(url: str) -> str:
         return 'twitter'
     if re.search(r'mp\.weixin\.qq\.com/', url, re.I):
         return 'wechat'
+    if re.search(r'(xiaohongshu\.com|xhslink\.com)', url, re.I):
+        return 'xiaohongshu'
     return 'webpage'
 
 
@@ -1326,6 +1328,564 @@ def _extract_wechat_metadata(html: str) -> tuple[str, str, str]:
 
 
 # ---------------------------------------------------------------------------
+# 小红书提取 (Playwright/Camoufox + dots.ocr)
+# ---------------------------------------------------------------------------
+
+XHS_COOKIE_FILE = Path(__file__).resolve().parent / 'xiaohongshu_cookies.txt'
+
+# OCR 子系统路径
+OCR_VENV_DIR = Path(__file__).resolve().parent / '.venv-ocr'
+OCR_SCRIPT = Path(__file__).resolve().parent / 'ocr_image.py'
+
+
+def _resolve_xhs_short_url(url: str) -> str:
+    """解析小红书短链接（xhslink.com）到完整 URL。"""
+    if 'xhslink.com' not in url:
+        return url
+    try:
+        import httpx
+        with httpx.Client(follow_redirects=False, timeout=10.0) as client:
+            resp = client.get(url)
+            if resp.status_code in (301, 302):
+                return resp.headers.get('location', url)
+    except Exception:
+        pass
+    return url
+
+
+def _extract_xhs_note_id(url: str) -> str | None:
+    """从小红书 URL 中提取 note_id（24 位十六进制）。"""
+    match = re.search(r'(?:discovery/item|explore)/([a-f0-9]{24})', url, re.I)
+    return match.group(1) if match else None
+
+
+def extract_xiaohongshu(url: str) -> dict:
+    """提取小红书笔记内容（文字 + 图片 OCR + 评论）。
+
+    策略:
+      1. 解析短链接 → 完整 URL
+      2. Playwright/Camoufox + cookie 渲染页面
+      3. DOM 提取笔记文字、图片 URL、评论
+      4. 对图片做 OCR（dots.ocr），提取图中文字
+      5. 合并去重：笔记文字 + OCR 文字 + 筛选后评论
+    """
+    # 解析短链接
+    resolved_url = _resolve_xhs_short_url(url)
+    note_id = _extract_xhs_note_id(resolved_url)
+
+    if not note_id:
+        return _error(
+            f"无法从 URL 中提取小红书笔记 ID: {url}\n"
+            "支持的格式:\n"
+            "  - https://www.xiaohongshu.com/explore/<note_id>\n"
+            "  - https://www.xiaohongshu.com/discovery/item/<note_id>\n"
+            "  - http://xhslink.com/<短码>"
+        )
+
+    # 浏览器渲染 + DOM 提取
+    browser_result = _fetch_xhs_with_browser(resolved_url)
+    if not browser_result:
+        if not XHS_COOKIE_FILE.exists():
+            return _error(
+                "无法提取小红书笔记内容。小红书需要登录态才能查看完整内容。\n\n"
+                "需要一次性设置（约 1 分钟）：\n"
+                "1. 在 Chrome 中安装扩展「Get cookies.txt LOCALLY」\n"
+                "   https://chromewebstore.google.com/detail/get-cookiestxt-locally/"
+                "cclelndahbckbenkjhflpdbgdldlbecc\n"
+                "2. 打开 xiaohongshu.com 并确保已登录\n"
+                "3. 点击扩展图标 → 「Export」→ 保存文件\n"
+                "4. 将文件移动到：\n"
+                f"   {XHS_COOKIE_FILE}\n\n"
+                "设置完成后重新运行即可。Cookie 文件只需导出一次，长期有效。"
+            )
+        return _error(
+            "无法提取小红书笔记内容。\n"
+            "可能原因: 笔记已删除、cookie 已过期、或被反爬拦截。\n"
+            "建议: 1) 重新导出 cookie 文件；"
+            "2) 在小红书 App 中打开笔记 → 复制文字 → 直接粘贴给我。"
+        )
+
+    title, author, note_text, image_urls, comments, tags, engagement = browser_result
+
+    # OCR 图片中的文字
+    ocr_texts = _ocr_xhs_images(image_urls) if image_urls else []
+
+    # 合并去重：笔记文字 + OCR 文字 + 评论
+    full_text = _merge_xhs_content(
+        title, author, note_text, ocr_texts, comments, tags, engagement,
+    )
+
+    return {
+        'source': 'xiaohongshu',
+        'url': url,
+        'title': title,
+        'author': author,
+        'date': '',
+        'total_duration_seconds': 0,
+        'image_count': len(image_urls),
+        'comment_count': len(comments),
+        'transcript_entries': [],
+        'full_text': full_text,
+        'error': None,
+    }
+
+
+def _fetch_xhs_with_browser(
+    url: str,
+) -> tuple[str, str, str, list[str], list[dict], list[str], dict] | None:
+    """使用浏览器渲染小红书页面，从 DOM 提取笔记内容。
+
+    返回 (title, author, note_text, image_urls, comments, tags, engagement) 或 None。
+    """
+    browser = None
+    engine_name = None
+    pw_instance = None
+    ctx_manager = None
+
+    # 尝试 Camoufox（反检测更强）
+    try:
+        from camoufox.sync_api import Camoufox
+        ctx_manager = Camoufox(headless=True)
+        browser = ctx_manager.__enter__()
+        engine_name = 'Camoufox'
+    except (ImportError, Exception) as e:
+        print(f'[XHS] Camoufox 不可用 ({e})，回退到 Playwright...', file=sys.stderr)
+
+    # 回退 Playwright
+    if browser is None:
+        try:
+            from playwright.sync_api import sync_playwright
+            pw_instance = sync_playwright().start()
+            browser = pw_instance.chromium.launch(headless=True)
+            engine_name = 'Playwright'
+        except (ImportError, Exception) as e:
+            print(f'[XHS] Playwright 也不可用 ({e})', file=sys.stderr)
+            return None
+
+    try:
+        context = browser.new_context(
+            viewport={'width': 1280, 'height': 800},
+            user_agent=(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 (KHTML, like Gecko) '
+                'Chrome/131.0.0.0 Safari/537.36'
+            ),
+        )
+
+        # 注入 cookie
+        if XHS_COOKIE_FILE.exists():
+            cookies = _load_cookies_for_playwright(XHS_COOKIE_FILE, url)
+            if cookies:
+                context.add_cookies(cookies)
+                print(f'[XHS][{engine_name}] 已加载 {len(cookies)} 条 cookie',
+                      file=sys.stderr)
+
+        page = context.new_page()
+
+        # Playwright 模式下应用 stealth
+        if engine_name == 'Playwright':
+            try:
+                from playwright_stealth import Stealth
+                Stealth().apply_stealth_sync(page)
+            except ImportError:
+                pass
+
+        page.goto(url, wait_until='domcontentloaded', timeout=60000)
+        # 小红书 JS 渲染较重，等待主要内容加载
+        page.wait_for_timeout(8000)
+
+        # 等待核心元素出现
+        try:
+            page.wait_for_selector('#detail-title', timeout=5000)
+        except Exception:
+            print(f'[XHS][{engine_name}] #detail-title 未出现，'
+                  '页面可能未加载或需要登录', file=sys.stderr)
+
+        # --- DOM 提取 ---
+        title = _safe_text(page, '#detail-title') or '未知标题'
+
+        author = (_safe_text(page, '.author-wrapper .username')
+                  or _safe_text(page, '.author-wrapper .name')
+                  or '')
+
+        # 正文：提取 #detail-desc .note-text 的纯文本（排除标签链接）
+        note_text = _extract_xhs_note_text(page)
+
+        # 标签
+        tags = _extract_xhs_tags(page)
+
+        # 图片 URL
+        image_urls = _extract_xhs_images(page)
+
+        # 互动数据
+        engagement = _extract_xhs_engagement(page)
+
+        # 评论（需要先滚动到评论区）
+        comments = _extract_xhs_comments(page)
+
+        if not title or title == '未知标题':
+            # 最后回退：用 trafilatura 从完整页面提取
+            print(f'[XHS][{engine_name}] DOM 提取失败，尝试 trafilatura 回退',
+                  file=sys.stderr)
+            try:
+                import trafilatura
+                html = page.content()
+                text = trafilatura.extract(
+                    html, output_format='markdown',
+                    include_comments=False, include_tables=True,
+                )
+                if text and len(text.strip()) > 100:
+                    return ('小红书笔记', '', text, [], [], [], {})
+            except Exception:
+                pass
+            return None
+
+        print(f'[XHS][{engine_name}] 提取成功: {title[:40]}... '
+              f'({len(image_urls)} 图, {len(comments)} 评论)',
+              file=sys.stderr)
+        return title, author, note_text, image_urls, comments, tags, engagement
+
+    except Exception as e:
+        print(f'[XHS][{engine_name}] 渲染失败: {e}', file=sys.stderr)
+        return None
+    finally:
+        try:
+            browser.close()
+        except Exception:
+            pass
+        if ctx_manager and engine_name == 'Camoufox':
+            try:
+                ctx_manager.__exit__(None, None, None)
+            except Exception:
+                pass
+        if pw_instance:
+            try:
+                pw_instance.stop()
+            except Exception:
+                pass
+
+
+def _extract_xhs_note_text(page) -> str:
+    """从小红书笔记页面提取正文纯文本（排除标签链接）。"""
+    try:
+        content_el = page.query_selector('#detail-desc .note-text')
+        if not content_el:
+            content_el = page.query_selector('#detail-desc')
+        if not content_el:
+            return ''
+        # 用 JS 提取纯文本，排除 <a> 标签（标签链接）
+        text = page.evaluate('''(el) => {
+            let text = '';
+            el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    text += node.textContent;
+                } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName !== 'A') {
+                    text += node.textContent;
+                }
+            });
+            return text.trim();
+        }''', content_el)
+        return text or ''
+    except Exception:
+        return _safe_text(page, '#detail-desc') or ''
+
+
+def _extract_xhs_tags(page) -> list[str]:
+    """从小红书笔记页面提取标签列表。"""
+    try:
+        elements = page.query_selector_all('#detail-desc .tag')
+        return [el.inner_text().strip() for el in elements if el.inner_text().strip()]
+    except Exception:
+        return []
+
+
+def _extract_xhs_images(page) -> list[str]:
+    """从小红书笔记页面提取所有图片 URL。"""
+    urls = []
+    try:
+        # 按优先级尝试多组选择器，直到找到有效 URL
+        selector_groups = [
+            '.swiper-slide img',
+            '.note-slider-img',
+            '[class*="slider"] img',
+            '[class*="slide"] img',
+        ]
+        for selector in selector_groups:
+            elements = page.query_selector_all(selector)
+            for el in elements:
+                src = el.get_attribute('src') or el.get_attribute('data-src') or ''
+                if src and src.startswith('http') and 'avatar' not in src.lower():
+                    # 去掉 CDN 尺寸/签名参数，获取原图
+                    clean = re.sub(r'\?imageView2/\d/.*$', '', src)
+                    clean = re.sub(r'\?x-oss-process=.*$', '', clean)
+                    if clean not in urls:
+                        urls.append(clean)
+            if urls:
+                break  # 找到有效 URL 后停止尝试其他选择器
+    except Exception as e:
+        print(f'[XHS] 图片提取失败: {e}', file=sys.stderr)
+    return urls
+
+
+def _extract_xhs_engagement(page) -> dict:
+    """从小红书笔记页面提取互动数据（赞/藏/评论数）。"""
+    result = {'likes': 0, 'collects': 0, 'comments': 0}
+    try:
+        counts = page.query_selector_all('.engage-bar-style .count')
+        if len(counts) >= 3:
+            for i, key in enumerate(['likes', 'collects', 'comments']):
+                text = counts[i].inner_text().strip()
+                # "赞"/"收藏"/"评论" 表示数量为 0
+                if text.isdigit():
+                    result[key] = int(text)
+                else:
+                    # 处理 "1.2万" 等中文数字格式
+                    m = re.match(r'([\d.]+)\s*万', text)
+                    if m:
+                        result[key] = int(float(m.group(1)) * 10000)
+    except Exception:
+        pass
+    return result
+
+
+def _extract_xhs_comments(page) -> list[dict]:
+    """从小红书笔记页面提取评论。
+
+    先滚动到评论区触发加载，然后提取带点赞数的评论列表。
+    """
+    comments = []
+    try:
+        # 滚动到评论区触发加载
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight * 0.6)')
+        page.wait_for_timeout(2000)
+        page.evaluate('window.scrollTo(0, document.body.scrollHeight * 0.8)')
+        page.wait_for_timeout(2000)
+
+        # rednote-mcp 确认的选择器：.parent-comment .comment-item
+        items = page.query_selector_all('.parent-comment .comment-item')
+        if not items:
+            items = page.query_selector_all('[class*="comment-item"]')
+
+        for el in items[:30]:  # 最多取 30 条
+            try:
+                author_el = el.query_selector('.author .name')
+                content_el = el.query_selector('.content .note-text')
+                likes_el = el.query_selector('.like .count')
+
+                author_name = author_el.inner_text().strip() if author_el else ''
+                content = content_el.inner_text().strip() if content_el else ''
+                likes_text = likes_el.inner_text().strip() if likes_el else '0'
+
+                # 解析点赞数
+                likes = 0
+                if likes_text.isdigit():
+                    likes = int(likes_text)
+                elif likes_text not in ('赞', ''):
+                    m = re.match(r'([\d.]+)', likes_text)
+                    if m:
+                        likes = int(float(m.group(1)))
+
+                if content and len(content) > 2:
+                    comments.append({
+                        'author': author_name,
+                        'text': content,
+                        'likes': likes,
+                    })
+            except Exception:
+                continue
+
+        # 按点赞数降序排列
+        comments.sort(key=lambda c: c['likes'], reverse=True)
+
+    except Exception as e:
+        print(f'[XHS] 评论提取失败: {e}', file=sys.stderr)
+    return comments
+
+
+# ---------------------------------------------------------------------------
+# 小红书：OCR 桥接
+# ---------------------------------------------------------------------------
+
+def _get_ocr_python() -> Path | None:
+    """获取 OCR venv 的 Python 路径（如果已安装）。"""
+    if sys.platform == 'win32':
+        p = OCR_VENV_DIR / 'Scripts' / 'python.exe'
+    else:
+        p = OCR_VENV_DIR / 'bin' / 'python'
+    return p if p.exists() else None
+
+
+def _ocr_xhs_images(image_urls: list[str]) -> list[str]:
+    """对小红书笔记图片做 OCR，返回每张图片的文字列表。
+
+    通过 subprocess 调用独立的 ocr_image.py 脚本（在 .venv-ocr 中运行）。
+    如果 OCR 环境未安装或不可用，静默跳过。
+    """
+    if not image_urls:
+        return []
+
+    ocr_python = _get_ocr_python()
+    if not ocr_python or not OCR_SCRIPT.exists():
+        print('[XHS] OCR 环境未就绪，跳过图片文字提取。'
+              '运行 `py -3 run.py --setup-ocr` 安装 OCR 环境。',
+              file=sys.stderr)
+        return []
+
+    try:
+        print(f'[XHS] 正在对 {len(image_urls)} 张图片做 OCR...',
+              file=sys.stderr)
+        result = subprocess.run(
+            [str(ocr_python), str(OCR_SCRIPT)] + image_urls,
+            capture_output=True, text=True,
+            timeout=900,  # 15 分钟超时（GPU 上约 15-20 秒/张，含下载）
+            encoding='utf-8',
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            texts = [item['text'] for item in data
+                     if item.get('text') and not item.get('error')]
+            print(f'[XHS] OCR 完成，{len(texts)}/{len(image_urls)} 张图片提取到文字',
+                  file=sys.stderr)
+            return texts
+        elif result.stderr:
+            print(f'[XHS] OCR 警告: {result.stderr[:200]}', file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print('[XHS] OCR 超时（15 分钟），跳过', file=sys.stderr)
+    except (json.JSONDecodeError, Exception) as e:
+        print(f'[XHS] OCR 失败: {e}', file=sys.stderr)
+
+    return []
+
+
+# ---------------------------------------------------------------------------
+# 小红书：内容合并与去重
+# ---------------------------------------------------------------------------
+
+def _merge_xhs_content(
+    title: str, author: str, note_text: str, ocr_texts: list[str],
+    comments: list[dict], tags: list[str], engagement: dict,
+) -> str:
+    """将小红书笔记文字 + OCR 文字 + 评论合并为结构化 Markdown。"""
+    parts = []
+
+    # 标题和元信息
+    parts.append(f'# {title}\n')
+    meta_items = []
+    if author:
+        meta_items.append(f'**作者**: {author}')
+    if engagement:
+        eng_parts = []
+        if engagement.get('likes'):
+            eng_parts.append(f"❤️ {engagement['likes']:,}")
+        if engagement.get('collects'):
+            eng_parts.append(f"⭐ {engagement['collects']:,}")
+        if engagement.get('comments'):
+            eng_parts.append(f"💬 {engagement['comments']:,}")
+        if eng_parts:
+            meta_items.append(' | '.join(eng_parts))
+    if tags:
+        meta_items.append('**标签**: ' + '、'.join(tags))
+    if meta_items:
+        parts.append('\n'.join(meta_items))
+
+    # 笔记正文
+    if note_text:
+        parts.append('## 笔记正文\n')
+        parts.append(note_text)
+
+    # OCR 文字（去重后）
+    if ocr_texts:
+        unique_ocr = _deduplicate_ocr(note_text, ocr_texts)
+        if unique_ocr:
+            parts.append('## 图片文字内容\n')
+            for i, text in enumerate(unique_ocr, 1):
+                parts.append(f'### 图片 {i}\n')
+                parts.append(text)
+
+    # 筛选后的评论
+    if comments:
+        valuable = _filter_valuable_comments(comments)
+        if valuable:
+            parts.append('## 评论区精选\n')
+            for c in valuable:
+                likes_str = f" ({c['likes']} 赞)" if c.get('likes') else ''
+                author_str = f"**{c['author']}**" if c.get('author') else ''
+                prefix = f'{author_str}{likes_str}: ' if author_str else ''
+                parts.append(f'- {prefix}{c["text"]}')
+
+    return '\n\n'.join(parts)
+
+
+def _deduplicate_ocr(note_text: str, ocr_texts: list[str]) -> list[str]:
+    """将 OCR 文字与笔记正文去重。
+
+    按句子级别比较，用字符集 Jaccard 相似度 > 0.7 判定为重复并去除。
+    """
+    if not note_text:
+        return [t for t in ocr_texts if t.strip()]
+
+    # 将笔记正文拆为句子集合
+    note_sentences = set()
+    for s in re.split(r'[。！？\n.!?\r]', note_text):
+        s = s.strip()
+        if len(s) > 3:
+            note_sentences.add(s)
+
+    unique = []
+    for ocr_text in ocr_texts:
+        if not ocr_text.strip():
+            continue
+        unique_sentences = []
+        for s in re.split(r'[。！？\n.!?\r]', ocr_text):
+            s = s.strip()
+            if len(s) <= 3:
+                continue
+            # 检查与笔记文字的 Jaccard 相似度
+            is_dup = False
+            s_chars = set(s)
+            for ns in note_sentences:
+                ns_chars = set(ns)
+                union = len(s_chars | ns_chars)
+                if union == 0:
+                    continue
+                jaccard = len(s_chars & ns_chars) / union
+                if jaccard > 0.7:
+                    is_dup = True
+                    break
+            if not is_dup:
+                unique_sentences.append(s)
+        if unique_sentences:
+            unique.append('。'.join(unique_sentences))
+
+    return unique
+
+
+def _filter_valuable_comments(comments: list[dict]) -> list[dict]:
+    """筛选有信息价值的评论。
+
+    保留标准: 长度 > 15 字 + 排除纯情绪/闲聊。最多返回 10 条。
+    """
+    noise_patterns = [
+        r'^(太[棒好赞强厉害]了|好[棒赞强厉害]|收藏了|感谢分享|说得对|确实|'
+        r'哈哈|真的|关注了|学到了|马了|赞|谢谢|厉害|牛|绝了|爱了|冲|yyds)',
+        r'^(求|蹲|同问|mark|码住|想知道|在哪|多少钱|链接|求链接)',
+        r'^[\U0001f600-\U0001f64f\U0001f300-\U0001f5ff\U0001f680-\U0001f6ff'
+        r'\U0001f900-\U0001f9ff\u2600-\u26ff\u2700-\u27bf\s]{0,10}$',
+    ]
+
+    valuable = []
+    for c in comments:
+        text = c.get('text', '')
+        if len(text) < 15:
+            continue
+        if any(re.match(p, text, re.I) for p in noise_patterns):
+            continue
+        valuable.append(c)
+
+    return valuable[:10]
+
+
+# ---------------------------------------------------------------------------
 # 内容切分
 # ---------------------------------------------------------------------------
 
@@ -1482,6 +2042,8 @@ def main():
         result = extract_twitter(args.url)
     elif source == 'wechat':
         result = extract_wechat(args.url)
+    elif source == 'xiaohongshu':
+        result = extract_xiaohongshu(args.url)
     else:
         result = extract_webpage(args.url)
 
@@ -1499,6 +2061,8 @@ def main():
         'total_duration_seconds': result.get('total_duration_seconds', 0),
         'page_count': result.get('page_count', 0),
         'word_count': result.get('word_count', 0),
+        'image_count': result.get('image_count', 0),
+        'comment_count': result.get('comment_count', 0),
         'segment_count': result.get('segment_count', 0),
         'segments': result.get('segments', []),
         'full_text': result.get('full_text', ''),

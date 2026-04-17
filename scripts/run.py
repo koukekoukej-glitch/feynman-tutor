@@ -38,6 +38,11 @@ INSTALLED_MARKER = VENV_DIR / '.installed'
 PLAYWRIGHT_MARKER = VENV_DIR / '.playwright_installed'
 CAMOUFOX_MARKER = VENV_DIR / '.camoufox_installed'
 
+# --- OCR 子系统（独立 venv，仅在 --setup-ocr 时安装）---
+OCR_VENV_DIR = SCRIPT_DIR / '.venv-ocr'
+OCR_INSTALLED_MARKER = OCR_VENV_DIR / '.installed'
+OCR_MODEL_DIR = SCRIPT_DIR / '.ocr-models' / 'DotsOCR'
+
 
 def get_venv_python() -> Path:
     """获取 venv 中 Python 可执行文件的路径。"""
@@ -137,7 +142,52 @@ def ensure_deno_in_path():
                 os.environ['PATH'] = os.environ.get('PATH', '') + os.pathsep + str(d)
 
 
+def get_ocr_python() -> Path:
+    """获取 OCR venv 中 Python 可执行文件的路径。"""
+    if sys.platform == 'win32':
+        return OCR_VENV_DIR / 'Scripts' / 'python.exe'
+    return OCR_VENV_DIR / 'bin' / 'python'
+
+
+def ensure_ocr_env():
+    """安装 OCR 子系统（RapidOCR）。独立 venv，仅在 --setup-ocr 时调用。"""
+    ocr_python = get_ocr_python()
+
+    if OCR_INSTALLED_MARKER.exists() and ocr_python.exists():
+        print('OCR 环境已就绪。', file=sys.stderr)
+        return
+
+    if not ocr_python.exists():
+        print('正在创建 OCR 专用 Python 环境...', file=sys.stderr)
+        subprocess.run(
+            [sys.executable, '-m', 'venv', str(OCR_VENV_DIR)],
+            check=True,
+        )
+
+    subprocess.run(
+        [str(ocr_python), '-m', 'pip', 'install', '--quiet', '--upgrade', 'pip'],
+        check=True,
+    )
+
+    print('正在安装 RapidOCR 和依赖...', file=sys.stderr)
+    subprocess.run(
+        [str(ocr_python), '-m', 'pip', 'install', '--quiet',
+         'rapidocr-onnxruntime', 'Pillow', 'httpx', 'numpy'],
+        check=True,
+    )
+
+    # 写入标记
+    OCR_INSTALLED_MARKER.write_text('ok')
+    print('\nOCR 环境安装完成！现在可以对小红书笔记图片做 OCR 了。\n',
+          file=sys.stderr)
+
+
 def main():
+    # 特殊入口：安装 OCR 环境
+    if '--setup-ocr' in sys.argv:
+        ensure_ocr_env()
+        sys.exit(0)
+
     ensure_venv()
     ensure_playwright_browsers()
     ensure_camoufox_browser()
@@ -146,9 +196,10 @@ def main():
     extract_script = SCRIPT_DIR / 'extract_content.py'
     venv_python = get_venv_python()
 
-    # 透传所有命令行参数给 extract_content.py
+    # 透传所有命令行参数给 extract_content.py（排除 --setup-ocr）
+    args = [a for a in sys.argv[1:] if a != '--setup-ocr']
     result = subprocess.run(
-        [str(venv_python), str(extract_script)] + sys.argv[1:],
+        [str(venv_python), str(extract_script)] + args,
     )
     sys.exit(result.returncode)
 

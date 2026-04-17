@@ -1,5 +1,10 @@
-# Python virtual environment (auto-created on first run)
+# Python virtual environments (auto-created on first run)
 scripts/.venv/
+scripts/.venv-ocr/
+
+# Local OCR model cache (large weights; the small ONNX models used by ocr_image.py
+# come via `py -3 run.py --setup-ocr`, through pip-installed rapidocr_onnxruntime)
+scripts/.ocr-models/
 
 # Cookie files (contain personal auth tokens)
 scripts/*_cookies.txt
