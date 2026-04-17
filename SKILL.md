@@ -304,7 +304,6 @@ L6 不是"讲清楚之后自动到达"。它是**激活频次 × 激活情境多
 
 - **用户输入包含 URL** → 识别来源类型（YouTube / B站 / Twitter / 微信 / 小红书 / PDF / 网页），读 `material-analysis.md` 走材料学习流程。这些来源有专属提取器（`scripts/run.py`），能力远超 WebFetch——**不要先用 WebFetch 预览**。
 - **用户提到之前分析过的材料** → 读 `materials/INDEX.md` 查找匹配，然后读 `material-analysis.md` 从"阶段 C-续读"开始。
-- **用户想测试/复习线性代数** → 读 `references/linear-algebra-testing.md`。
 - **其他新主题** → 继续下方加载流程。
 
 ### 2. 加载认知全景（三层按需加载）
