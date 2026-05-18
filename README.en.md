@@ -4,7 +4,7 @@
 
 Works with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and any LLM agent framework that supports custom System Prompts + file I/O + shell execution.
 
-[中文版 README](README_ZH.md)
+[中文版 README](README.md)
 
 ---
 
