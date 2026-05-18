@@ -149,6 +149,7 @@ related-topics:
 | `learner-core.md` 的 frontmatter | `sessions_count` +1；`last_updated` 改今天 |
 | `learner-history.md` | 追加本次的一行记录 + 更新 frontmatter |
 | 今天话题所在的 `domains/{领域}/domain.md` | 在 checklist 里标 ✅，更新 `topic-count` |
+| **被反向链接的笔记**（见下面"反向回填"小节） | 自动加反链——这是图谱的命门，漏了下次他从邻居话题切入就找不到今天的笔记 |
 
 **按情况做：**
 
@@ -156,9 +157,43 @@ related-topics:
 |------|--------|
 | 新建话题 | 在 INDEX.md 话题索引表追加一行；对应领域的话题数 +1 |
 | 新建领域 | 创建 `domains/{新领域}/` 目录 + `domain.md`；在 INDEX.md 领域目录表追加一行 |
-| 他今天自发用到了别的话题里的概念 | 去那个**被用到的话题**的笔记里，在"他自发用到之前学过的东西"那节追加一条；同时更新那个话题的 `last_updated` |
 | 今天学的东西和其他领域有结构上的共通点 | 看 `cross-domain/` 里是不是已经有这个模式。有就追加新实例；没有但确实在 ≥2 个领域都出现过，才考虑新建一个 `cross-domain/*.md` 文件 + 在 INDEX.md 跨领域模式索引表追加一行 |
 | 今天看到了关于他思考方式的新模式，而且之前其他话题里也见过 | 加到 `learner-core.md` 的"他是怎么想事情的"或"你注意到了但还没看清的"——看证据强度（见下一节） |
+
+#### 反向回填（每次必做）
+
+知识网是单向链接的。你在当前话题 T 的 frontmatter 里写了 `related-topics: [X, Y]`、`cross-domain-patterns: [P]` 之后，必须去 X、Y、P 的笔记里**回填一笔反向链接**——否则下次他从 X 切入时，加载机制扫不到 T，T 就成了孤岛的目标方。这是图谱密度退化的最大单一原因。
+
+这一步**不需要再单独征得他确认**——他已经确认了今天的笔记内容，反向回填是机械操作。三类必做：
+
+**1. `related-topics` 反向回填**
+
+- 当前 T 的 `related-topics` 列了 X
+- 打开 X 的笔记，如果 X 的 `related-topics` 里**没有 T 的文件名 slug**，把它加进去
+- X 的 `last_updated` **不要动**（反链不是内容更新，动了会污染时间相邻信号）
+
+**2. `cross-domain-patterns` 反向回填**
+
+- 当前 T 的 `cross-domain-patterns` 列了模式 P
+- 打开 `cross-domain/{P}.md`：
+  - 如果正文"涉及："列表里**没有 T 的话题中文名**，加进去
+  - 如果 frontmatter `related-domains` 不包含 T 的 `domain`，加进去
+
+**3. `spontaneous-calls` 反向回填**
+
+- 这次 T 在讨论中，他自发重走了旧话题 X 的某段推导
+- 打开 X 的笔记，在 `spontaneous-calls` 字段追加一条：`"[YYYY-MM-DD] 在 T 话题中调用了 X 的 ___ 命题/推导"`
+- 这个字段约定是**被动语义**——记录"我被谁调用了"。**不要把 X 写进 T 自己的 `spontaneous-calls`**
+
+注意：现存少数笔记（K1.5 等）把 `spontaneous-calls` 当主动语义用了——里面填的是"我自发调用了哪些旧话题的 slug 列表"。**新写的一律按被动语义**。存量的不一致暂不主动清理，下次触达那些笔记时顺手改成被动语义、并把里面列的旧话题挪到那些旧话题的 `spontaneous-calls` 字段去。
+
+#### 命名约定
+
+为了让加载侧的 grep 反向扫描能正确命中：
+
+- 话题文件名 slug：全小写、连字符分隔、不带 `.md` 后缀（`kimi-k15-rl-training`，不是 `Kimi-K15.md`）
+- frontmatter 列表中引用其他话题：用 slug，**不带 `.md`**（之前有些笔记带了 `.md`，遇到时顺手去掉）
+- frontmatter 列表中引用跨域模式：用模式中文名（与文件名一致，如 `不可逆信息压缩`，不带 `.md`）
 
 **learner-history.md 的格式：**
 
